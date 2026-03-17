@@ -1,0 +1,844 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;500;700&family=Noto+Sans+SC:wght@300;400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ═══════════════════════════════════════
+   CSS 变量 & 色彩系统
+═══════════════════════════════════════ */
+:root {
+  --bg-primary: #F5F5F7;
+  --bg-dark: #0e0e16;
+  --celadon: #338678;
+  --celadon-light: #4fa191;
+  --celadon-glow: rgba(51, 134, 120, 0.35);
+  --celadon-glow-soft: rgba(51, 134, 120, 0.12);
+  --ink-deep: #1a1a24;
+  --ink-mid: #2a2a36;
+  --brass: #b89440;
+  --brass-light: #d4b86a;
+  --brass-glow: rgba(184, 148, 64, 0.3);
+  --cinnabar: #c94535;
+  --cinnabar-glow: rgba(201, 69, 53, 0.4);
+
+  /* 排版节奏 */
+  --spacing-page: clamp(1rem, 4vw, 2.5rem);
+  --radius-card: 1.25rem;
+  --radius-btn: 0.875rem;
+
+  /* 过渡基准 */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out-quart: cubic-bezier(0.76, 0, 0.24, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ═══════════════════════════════════════
+   基础重置
+═══════════════════════════════════════ */
+*, *::before, *::after {
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+html {
+  scroll-behavior: smooth;
+  font-size: 16px;
+}
+
+body {
+  background-color: var(--bg-dark);
+  color: #e2e2ea;
+  font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+  line-height: 1.7;
+}
+
+/* ═══════════════════════════════════════
+   全局噪点纹理（模拟宣纸肌理）
+═══════════════════════════════════════ */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.6;
+  mix-blend-mode: overlay;
+}
+
+/* ═══════════════════════════════════════
+   字体系统
+═══════════════════════════════════════ */
+/* 思源宋体 - 标题、卦名、爻辞 */
+.font-song {
+  font-family: 'Noto Serif SC', 'Source Han Serif CN', 'STSong', 'SimSun', Georgia, serif;
+  font-feature-settings: "kern" 1, "liga" 1;
+  letter-spacing: 0.05em;
+}
+
+/* 思源黑体 - 正文（继承 body） */
+.font-hei {
+  font-family: 'Noto Sans SC', 'Source Han Sans CN', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
+/* 古篆风装饰文字 */
+.font-decorative {
+  font-family: 'Noto Serif SC', serif;
+  font-weight: 300;
+  letter-spacing: 0.3em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ═══════════════════════════════════════
+   背景渐变系统
+═══════════════════════════════════════ */
+.bg-ink-gradient {
+  background:
+    radial-gradient(ellipse 80% 60% at 15% 60%, rgba(51, 134, 120, 0.07) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 85% 20%, rgba(184, 148, 64, 0.04) 0%, transparent 50%),
+    radial-gradient(ellipse 40% 80% at 50% 100%, rgba(30, 30, 38, 0.8) 0%, transparent 60%),
+    #0e0e16;
+}
+
+/* 页面级流光动态背景 */
+.bg-aurora {
+  position: relative;
+  overflow: hidden;
+}
+.bg-aurora::after {
+  content: '';
+  position: absolute;
+  inset: -50%;
+  background:
+    conic-gradient(from 0deg at 30% 50%, transparent 0deg, rgba(51,134,120,0.06) 60deg, transparent 120deg),
+    conic-gradient(from 180deg at 70% 50%, transparent 0deg, rgba(184,148,64,0.04) 60deg, transparent 120deg);
+  animation: auroraRotate 25s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes auroraRotate {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* ═══════════════════════════════════════
+   磨砂玻璃卡片
+═══════════════════════════════════════ */
+.glass {
+  background: rgba(26, 26, 36, 0.65);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.055);
+}
+
+.glass-warm {
+  background: rgba(30, 26, 20, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(184, 148, 64, 0.08);
+}
+
+.glass-celadon {
+  background: rgba(20, 38, 34, 0.65);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(51, 134, 120, 0.15);
+}
+
+/* 卡片悬停上浮效果 */
+.card-hover {
+  transition:
+    transform 0.35s var(--ease-out-expo),
+    box-shadow 0.35s ease;
+}
+.card-hover:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 50px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(51,134,120,0.1);
+}
+
+/* ═══════════════════════════════════════
+   天青色光晕系统
+═══════════════════════════════════════ */
+.glow-celadon {
+  box-shadow:
+    0 0 0 1px rgba(51, 134, 120, 0.2),
+    0 0 20px rgba(51, 134, 120, 0.2),
+    0 0 60px rgba(51, 134, 120, 0.08);
+}
+
+.glow-celadon-strong {
+  box-shadow:
+    0 0 0 1px rgba(51, 134, 120, 0.35),
+    0 0 30px rgba(51, 134, 120, 0.35),
+    0 0 80px rgba(51, 134, 120, 0.12);
+}
+
+.glow-brass {
+  box-shadow:
+    0 0 0 1px rgba(184, 148, 64, 0.2),
+    0 0 20px rgba(184, 148, 64, 0.2),
+    0 0 50px rgba(184, 148, 64, 0.06);
+}
+
+.glow-cinnabar {
+  box-shadow:
+    0 0 0 1px rgba(201, 69, 53, 0.3),
+    0 0 20px rgba(201, 69, 53, 0.25),
+    0 0 50px rgba(201, 69, 53, 0.08);
+}
+
+/* 脉冲光晕动画 */
+.glow-pulse {
+  animation: glowPulse 3s ease-in-out infinite;
+}
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 20px var(--celadon-glow-soft), 0 0 50px rgba(51,134,120,0.05); }
+  50%       { box-shadow: 0 0 35px var(--celadon-glow),      0 0 80px rgba(51,134,120,0.12); }
+}
+
+/* ═══════════════════════════════════════
+   铜钱专属样式
+═══════════════════════════════════════ */
+.coin-shadow {
+  box-shadow:
+    0 6px 20px rgba(184, 148, 64, 0.35),
+    0 2px 6px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(232, 212, 160, 0.5),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.35);
+}
+
+.coin-yang {
+  background: radial-gradient(circle at 35% 30%, #f0e0a8, #c8a040, #8a6420, #5a3e10);
+}
+
+.coin-yin {
+  background: radial-gradient(circle at 35% 30%, #d8d8e4, #9898b0, #5a5a70, #2a2a3a);
+}
+
+/* 铜钱翻转 3D */
+@keyframes coinFlipAnim {
+  0%   { transform: perspective(500px) rotateY(0deg) scale(1); }
+  20%  { transform: perspective(500px) rotateY(72deg) scale(0.92); }
+  40%  { transform: perspective(500px) rotateY(144deg) scale(0.86); }
+  60%  { transform: perspective(500px) rotateY(216deg) scale(0.92); }
+  80%  { transform: perspective(500px) rotateY(288deg) scale(0.96); }
+  100% { transform: perspective(500px) rotateY(360deg) scale(1); }
+}
+
+.coin-flipping {
+  animation: coinFlipAnim 0.85s var(--ease-in-out-quart);
+}
+
+/* 铜钱落定后微弹 */
+@keyframes coinSettle {
+  0%   { transform: scale(1.08) translateY(-4px); }
+  40%  { transform: scale(0.96) translateY(2px); }
+  70%  { transform: scale(1.02) translateY(-1px); }
+  100% { transform: scale(1) translateY(0); }
+}
+.coin-settle {
+  animation: coinSettle 0.4s var(--ease-spring) forwards;
+}
+
+/* ═══════════════════════════════════════
+   爻线样式
+═══════════════════════════════════════ */
+.yao-line-yang {
+  height: 5px;
+  border-radius: 3px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(184,148,64,0.4) 5%,
+    #c8a040 20%,
+    #e8d4a0 50%,
+    #c8a040 80%,
+    rgba(184,148,64,0.4) 95%,
+    transparent 100%
+  );
+  box-shadow: 0 0 8px rgba(184, 148, 64, 0.3);
+}
+
+.yao-line-yin-left,
+.yao-line-yin-right {
+  height: 5px;
+  border-radius: 3px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(184,148,64,0.4) 8%,
+    #c8a040 25%,
+    #e8d4a0 60%
+  );
+  box-shadow: 0 0 8px rgba(184, 148, 64, 0.2);
+}
+
+.yao-line-yin-right {
+  background: linear-gradient(
+    90deg,
+    #e8d4a0 40%,
+    #c8a040 75%,
+    rgba(184,148,64,0.4) 92%,
+    transparent 100%
+  );
+}
+
+/* 动爻红色高亮 */
+.yao-moving .yao-line-yang,
+.yao-moving .yao-line-yin-left,
+.yao-moving .yao-line-yin-right {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(201,69,53,0.5) 5%,
+    #c94535 20%,
+    #e8806e 50%,
+    #c94535 80%,
+    rgba(201,69,53,0.5) 95%,
+    transparent 100%
+  );
+  box-shadow: 0 0 12px rgba(201, 69, 53, 0.6), 0 0 4px rgba(201, 69, 53, 0.4);
+}
+
+/* 爻线入场 */
+@keyframes yaoReveal {
+  0%   { opacity: 0; transform: scaleX(0) translateX(-10px); }
+  60%  { opacity: 1; transform: scaleX(1.04); }
+  100% { opacity: 1; transform: scaleX(1) translateX(0); }
+}
+.yao-reveal {
+  animation: yaoReveal 0.55s var(--ease-spring) forwards;
+  transform-origin: left center;
+}
+
+/* 动爻红光滴落 */
+.yao-moving {
+  position: relative;
+}
+.yao-moving::before {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; top: -3px; bottom: -3px;
+  background: transparent;
+  filter: drop-shadow(0 0 5px rgba(201, 69, 53, 0.7));
+  pointer-events: none;
+}
+
+/* ═══════════════════════════════════════
+   按钮系统
+═══════════════════════════════════════ */
+
+/* 主按钮：天青色 */
+.btn-primary {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 2rem;
+  border-radius: var(--radius-btn);
+  font-family: 'Noto Serif SC', serif;
+  font-size: 1rem;
+  letter-spacing: 0.1em;
+  color: #fff;
+  background: linear-gradient(135deg, #276b60 0%, #338678 50%, #3d9e8c 100%);
+  border: 1px solid rgba(100, 200, 180, 0.2);
+  cursor: pointer;
+  overflow: hidden;
+  transition: transform 0.2s var(--ease-spring), box-shadow 0.3s ease;
+  box-shadow: 0 4px 20px rgba(51, 134, 120, 0.25), inset 0 1px 0 rgba(255,255,255,0.1);
+}
+
+.btn-primary::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+/* 光扫效果 */
+.btn-primary::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
+  transition: left 0.5s ease;
+  pointer-events: none;
+}
+.btn-primary:hover::after { left: 150%; }
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(51,134,120,0.4), inset 0 1px 0 rgba(255,255,255,0.15);
+}
+.btn-primary:active { transform: translateY(0) scale(0.98); }
+
+/* 次要按钮：描边风格 */
+.btn-ghost {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.65rem 1.5rem;
+  border-radius: var(--radius-btn);
+  font-size: 0.875rem;
+  color: #6e6e82;
+  background: transparent;
+  border: 1px solid rgba(45, 45, 56, 0.9);
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+.btn-ghost:hover {
+  color: #7ec1b2;
+  border-color: rgba(51, 134, 120, 0.5);
+  background: rgba(51, 134, 120, 0.05);
+}
+
+/* ═══════════════════════════════════════
+   Range 输入框 (年龄滑块)
+═══════════════════════════════════════ */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4fa191, #276b60);
+  box-shadow: 0 0 0 3px rgba(51,134,120,0.2), 0 2px 6px rgba(0,0,0,0.3);
+  transition: box-shadow 0.2s, transform 0.2s;
+  cursor: grab;
+}
+input[type="range"]::-webkit-slider-thumb:active {
+  cursor: grabbing;
+  transform: scale(1.2);
+  box-shadow: 0 0 0 5px rgba(51,134,120,0.25), 0 2px 8px rgba(0,0,0,0.35);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4fa191, #276b60);
+  box-shadow: 0 0 0 3px rgba(51,134,120,0.2);
+  cursor: grab;
+}
+
+/* ═══════════════════════════════════════
+   输入框 Focus 效果
+═══════════════════════════════════════ */
+input[type="text"],
+textarea,
+select {
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+input[type="text"]:focus,
+textarea:focus {
+  border-color: rgba(51, 134, 120, 0.6) !important;
+  box-shadow: 0 0 0 3px rgba(51, 134, 120, 0.12), 0 0 0 1px rgba(51, 134, 120, 0.3);
+  outline: none;
+}
+
+/* ═══════════════════════════════════════
+   分隔线 - 古风金色渐变
+═══════════════════════════════════════ */
+.divider-ancient {
+  border: none;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(184, 148, 64, 0.15) 15%,
+    rgba(184, 148, 64, 0.45) 40%,
+    rgba(51, 134, 120, 0.45) 60%,
+    rgba(51, 134, 120, 0.15) 85%,
+    transparent 100%
+  );
+}
+
+/* 带菱形中心点的分隔线 */
+.divider-diamond {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.divider-diamond::before,
+.divider-diamond::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(184,148,64,0.35));
+}
+.divider-diamond::after {
+  background: linear-gradient(90deg, rgba(184,148,64,0.35), transparent);
+}
+
+/* ═══════════════════════════════════════
+   摄像头视图
+═══════════════════════════════════════ */
+.camera-vignette {
+  background: radial-gradient(
+    ellipse at center,
+    transparent 35%,
+    rgba(14, 14, 22, 0.5) 65%,
+    rgba(14, 14, 22, 0.9) 100%
+  );
+}
+
+/* 手势检测扫描线 */
+@keyframes scanLine {
+  0%   { top: 0%; opacity: 0.6; }
+  50%  { opacity: 0.3; }
+  100% { top: 100%; opacity: 0.6; }
+}
+.scan-line {
+  position: absolute;
+  left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(51,134,120,0.6), transparent);
+  animation: scanLine 3s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* 摄像头角框 */
+.camera-corner {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-color: rgba(51, 134, 120, 0.6);
+  border-style: solid;
+  border-width: 0;
+}
+.camera-corner-tl { top: 10px; left: 10px;  border-top-width: 2px; border-left-width: 2px; border-radius: 3px 0 0 0; }
+.camera-corner-tr { top: 10px; right: 10px; border-top-width: 2px; border-right-width: 2px; border-radius: 0 3px 0 0; }
+.camera-corner-bl { bottom: 10px; left: 10px;  border-bottom-width: 2px; border-left-width: 2px; border-radius: 0 0 0 3px; }
+.camera-corner-br { bottom: 10px; right: 10px; border-bottom-width: 2px; border-right-width: 2px; border-radius: 0 0 3px 0; }
+
+/* ═══════════════════════════════════════
+   容器摇晃动画
+═══════════════════════════════════════ */
+@keyframes containerShake {
+  0%   { transform: translate(0, 0) rotate(0deg); }
+  8%   { transform: translate(-6px, -4px) rotate(-1.2deg); }
+  16%  { transform: translate(6px, 4px) rotate(1.2deg); }
+  24%  { transform: translate(-5px, 5px) rotate(-0.8deg); }
+  32%  { transform: translate(5px, -5px) rotate(0.8deg); }
+  40%  { transform: translate(-4px, 3px) rotate(-1.5deg); }
+  48%  { transform: translate(4px, -3px) rotate(1.5deg); }
+  56%  { transform: translate(-3px, 4px) rotate(-1deg); }
+  64%  { transform: translate(3px, -4px) rotate(1deg); }
+  72%  { transform: translate(-2px, 2px) rotate(-0.5deg); }
+  80%  { transform: translate(2px, -2px) rotate(0.5deg); }
+  90%  { transform: translate(-1px, 1px) rotate(-0.2deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+.shaking {
+  animation: containerShake 0.35s var(--ease-in-out-quart);
+}
+
+/* 强震动（六爻完成时）*/
+@keyframes bigShake {
+  0%, 100% { transform: translate(0, 0); }
+  15%       { transform: translate(-10px, 0); }
+  30%       { transform: translate(10px, 0); }
+  45%       { transform: translate(-7px, 3px); }
+  60%       { transform: translate(7px, -3px); }
+  75%       { transform: translate(-4px, 0); }
+  90%       { transform: translate(4px, 0); }
+}
+.shaking-big {
+  animation: bigShake 0.5s var(--ease-in-out-quart);
+}
+
+/* ═══════════════════════════════════════
+   入场动画库
+═══════════════════════════════════════ */
+
+/* 淡入上浮 */
+@keyframes fadeUp {
+  0%   { opacity: 0; transform: translateY(24px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up {
+  animation: fadeUp 0.6s var(--ease-out-expo) forwards;
+}
+
+/* 淡入下落 */
+@keyframes fadeDown {
+  0%   { opacity: 0; transform: translateY(-20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-down {
+  animation: fadeDown 0.5s var(--ease-out-expo) forwards;
+}
+
+/* 缩放入场 */
+@keyframes scaleIn {
+  0%   { opacity: 0; transform: scale(0.88); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.animate-scale-in {
+  animation: scaleIn 0.45s var(--ease-spring) forwards;
+}
+
+/* 水墨扩散效果（圆形遮罩展开） */
+@keyframes inkSpread {
+  0%   { clip-path: circle(0% at 50% 50%); }
+  100% { clip-path: circle(150% at 50% 50%); }
+}
+.animate-ink-spread {
+  animation: inkSpread 0.8s var(--ease-out-expo) forwards;
+}
+
+/* 毛笔横扫 */
+@keyframes brushReveal {
+  0%   { clip-path: inset(0 100% 0 0); }
+  100% { clip-path: inset(0 0% 0 0); }
+}
+.animate-brush-reveal {
+  animation: brushReveal 0.9s var(--ease-out-expo) forwards;
+  transform-origin: left;
+}
+
+/* 浮动 */
+@keyframes float {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  33%       { transform: translateY(-8px) rotate(1deg); }
+  66%       { transform: translateY(-4px) rotate(-0.5deg); }
+}
+.animate-float {
+  animation: float 5s ease-in-out infinite;
+}
+
+/* 缓慢旋转 */
+@keyframes rotateSlow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.animate-rotate-slow {
+  animation: rotateSlow 30s linear infinite;
+}
+
+/* 阶梯式延迟入场 */
+.stagger-1 { animation-delay: 0.1s; }
+.stagger-2 { animation-delay: 0.2s; }
+.stagger-3 { animation-delay: 0.3s; }
+.stagger-4 { animation-delay: 0.4s; }
+.stagger-5 { animation-delay: 0.5s; }
+.stagger-6 { animation-delay: 0.6s; }
+
+/* ═══════════════════════════════════════
+   开屏动画专属
+═══════════════════════════════════════ */
+
+/* 阴阳鱼的天青色光晕光环 */
+@keyframes haloBreath {
+  0%, 100% {
+    box-shadow:
+      0 0 30px rgba(51,134,120,0.2),
+      0 0 80px rgba(51,134,120,0.06),
+      inset 0 0 30px rgba(51,134,120,0.04);
+  }
+  50% {
+    box-shadow:
+      0 0 50px rgba(51,134,120,0.4),
+      0 0 120px rgba(51,134,120,0.12),
+      inset 0 0 50px rgba(51,134,120,0.08);
+  }
+}
+.halo-breath {
+  animation: haloBreath 4s ease-in-out infinite;
+}
+
+/* 八卦文字闪烁 */
+@keyframes bagua {
+  0%, 100% { opacity: 0.15; }
+  50%       { opacity: 0.4; }
+}
+.bagua-char {
+  animation: bagua var(--d, 4s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+/* ═══════════════════════════════════════
+   AI 解卦流式文字
+═══════════════════════════════════════ */
+@keyframes cursorBlink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+.ai-cursor::after {
+  content: '▋';
+  font-size: 0.85em;
+  color: var(--celadon);
+  animation: cursorBlink 0.9s ease-in-out infinite;
+  margin-left: 2px;
+  vertical-align: middle;
+}
+
+/* AI 文字逐字出现 */
+@keyframes charAppear {
+  from { opacity: 0; filter: blur(4px); transform: translateY(3px); }
+  to   { opacity: 1; filter: blur(0px); transform: translateY(0); }
+}
+.ai-char {
+  display: inline;
+  animation: charAppear 0.15s ease forwards;
+}
+
+/* 加载波形 */
+@keyframes waveBar {
+  0%, 100% { transform: scaleY(0.3); }
+  50%       { transform: scaleY(1); }
+}
+.wave-bar {
+  animation: waveBar var(--d, 0.8s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+  transform-origin: bottom;
+}
+
+/* ═══════════════════════════════════════
+   卦盘展示
+═══════════════════════════════════════ */
+
+/* 干支时柱数字 */
+.ganzhi-digit {
+  font-family: 'Noto Serif SC', serif;
+  font-weight: 500;
+  background: linear-gradient(180deg, #e8d4a0 0%, #b89440 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 1px 3px rgba(184,148,64,0.3));
+}
+
+/* 爻位标签 */
+.yao-label {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  color: #6e6e82;
+  min-width: 2rem;
+  text-align: right;
+}
+
+/* 卦名大字 */
+.gua-name-display {
+  font-family: 'Noto Serif SC', serif;
+  font-size: clamp(1.8rem, 5vw, 3rem);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  background: linear-gradient(180deg, #e8d4a0 0%, #b89440 60%, #8a6420 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 2px 8px rgba(184,148,64,0.25));
+}
+
+.gua-name-display-celadon {
+  font-family: 'Noto Serif SC', serif;
+  font-size: clamp(1.8rem, 5vw, 3rem);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  background: linear-gradient(180deg, #7ec1b2 0%, #338678 60%, #1e4640 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 2px 8px rgba(51,134,120,0.25));
+}
+
+/* ═══════════════════════════════════════
+   进度步骤条
+═══════════════════════════════════════ */
+.step-active {
+  background: rgba(51, 134, 120, 0.15);
+  color: #7ec1b2;
+  border: 1px solid rgba(51, 134, 120, 0.35);
+  box-shadow: 0 0 12px rgba(51, 134, 120, 0.15);
+}
+.step-done {
+  color: rgba(51, 134, 120, 0.7);
+}
+.step-pending {
+  color: rgba(45, 45, 56, 0.9);
+}
+
+/* ═══════════════════════════════════════
+   Tooltip 提示
+═══════════════════════════════════════ */
+.tooltip {
+  position: relative;
+}
+.tooltip::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(26, 26, 36, 0.95);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: #a8a8b5;
+  font-size: 0.75rem;
+  padding: 4px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s;
+  backdrop-filter: blur(8px);
+}
+.tooltip:hover::after { opacity: 1; }
+
+/* ═══════════════════════════════════════
+   滚动条
+═══════════════════════════════════════ */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(51, 134, 120, 0.3);
+  border-radius: 2px;
+  transition: background 0.2s;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(51, 134, 120, 0.55); }
+
+/* ═══════════════════════════════════════
+   文字选中
+═══════════════════════════════════════ */
+::selection {
+  background: rgba(51, 134, 120, 0.28);
+  color: #e2e2ea;
+}
+
+/* ═══════════════════════════════════════
+   响应式辅助
+═══════════════════════════════════════ */
+@media (max-width: 640px) {
+  .font-song { letter-spacing: 0.03em; }
+  .gua-name-display { font-size: 2rem; }
+}
+
+/* ═══════════════════════════════════════
+   辅助功能
+═══════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
