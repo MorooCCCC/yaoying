@@ -13,8 +13,8 @@
     "react": "^18",
     "react-dom": "^18",
     "framer-motion": "^11.3.0",
-    "ai": "^3.3.0",
-    "@ai-sdk/openai": "^0.0.36",
+    "ai": "latest",
+    "@ai-sdk/openai": "latest",
     "lunar-javascript": "^1.6.8",
     "clsx": "^2.1.1"
   },
