@@ -97,7 +97,8 @@ ${yaoDescriptions}
 
   try {
     const result = await streamText({
-      model: openai("gpt-4o"),
+      // @ts-ignore
+model: openai("gpt-4o") as any,
       system: systemPrompt,
       messages: [{ role: "user", content: userPrompt }],
       temperature: 0.7,
