@@ -223,6 +223,9 @@ export default function CameraShake({ onYaoComplete, onAllComplete, currentYaoIn
   const handsRef = useRef<any>(null);
   
   const [cameraActive, setCameraActive] = useState(false);
+  const [cameraError, setCameraError] = useState(false);
+  const [cameraErrorMsg, setCameraErrorMsg] = useState("");
+  const [showCamera, setShowCamera] = useState(false);
   const [handState, setHandState] = useState<HandState>("idle");
   const [shakeIntensity, setShakeIntensity] = useState(0);
   const [isContainerShaking, setIsContainerShaking] = useState(false);
@@ -233,46 +236,116 @@ export default function CameraShake({ onYaoComplete, onAllComplete, currentYaoIn
   const [lastYaoResult, setLastYaoResult] = useState<YaoResult | null>(null);
   
   // 手势追踪数据
-  const landmarkHistoryRef = useRef<number[][]>([]);
   const shakeStartRef = useRef<number>(0);
   const shakeCountRef = useRef<number>(0);
   const isGeneratingRef = useRef(false);
   
-  const SHAKE_THRESHOLD = 30;  // 震动阈值
-  const SHAKE_REQUIRED = 6;    // 需要连续震动次数
-  const STOP_FRAMES = 15;      // 停止帧数
+  const SHAKE_THRESHOLD = 30;
+  const SHAKE_REQUIRED = 6;
+  const STOP_FRAMES = 15;
   
-  let stopFramesRef = useRef(0);
-  let prevHandPosRef = useRef<{x: number, y: number} | null>(null);
+  const stopFramesRef = useRef(0);
+  const prevHandPosRef = useRef<{x: number, y: number} | null>(null);
 
-  // 启动摄像头
+  // 将 stream 绑到 video 元素并播放
+  const attachStream = (video: HTMLVideoElement, stream: MediaStream) => {
+    video.srcObject = stream;
+    // 移动端兼容：必须同步设置这些属性
+    video.muted = true;
+    video.setAttribute("playsinline", "");
+    video.setAttribute("webkit-playsinline", "");
+    video.setAttribute("x5-playsinline", "");
+    video.setAttribute("x5-video-player-type", "h5");
+    
+    const tryPlay = () => {
+      const p = video.play();
+      if (p !== undefined) {
+        p.catch((err) => {
+          console.warn("[camera] play() blocked:", err);
+          // 降级：显示画面但提示用户点击
+        });
+      }
+    };
+
+    if (video.readyState >= 1) {
+      tryPlay();
+    } else {
+      video.addEventListener("loadedmetadata", tryPlay, { once: true });
+    }
+  };
+
+  // 启动摄像头 — 必须在用户点击事件的同步上下文中调用
   const startCamera = async () => {
     try {
+      setCameraError(false);
+      setCameraErrorMsg("");
+
+      // 先把摄像头画面区域打开，让 videoRef 挂载到 DOM
+      setCameraActive(true);
+
+      // 等一帧让 React 完成 DOM 更新
+      await new Promise(r => setTimeout(r, 50));
+
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: 640, height: 480, facingMode: "user" },
+        video: {
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+          facingMode: "user",
+        },
+        audio: false,
       });
       streamRef.current = stream;
+
       if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
+        attachStream(videoRef.current, stream);
       }
-      setCameraActive(true);
+
       initMediaPipe();
-    } catch (e) {
+    } catch (e: any) {
       console.error("Camera error:", e);
+      setCameraActive(false);
+      setCameraError(true);
+      // 给用户具体错误原因
+      if (e?.name === "NotAllowedError" || e?.name === "PermissionDeniedError") {
+        setCameraErrorMsg("摄像头权限被拒绝，请在浏览器设置中允许访问摄像头");
+      } else if (e?.name === "NotFoundError") {
+        setCameraErrorMsg("未检测到摄像头设备");
+      } else if (e?.name === "NotReadableError") {
+        setCameraErrorMsg("摄像头被其他应用占用，请关闭后重试");
+      } else {
+        setCameraErrorMsg("摄像头启动失败，请使用手动摇卦");
+      }
     }
+  };
+
+  // 关闭摄像头
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    if (handsRef.current) {
+      handsRef.current.close();
+      handsRef.current = null;
+    }
+    setCameraActive(false);
+    setCameraError(false);
+    setHandState("idle");
   };
 
   // 初始化 MediaPipe
   const initMediaPipe = useCallback(() => {
     if (typeof window === "undefined") return;
+
+    // 重置重试计数
+    (window as any).__mpRetryCount = 0;
     
     const checkMediaPipe = () => {
       if ((window as any).Hands) {
         const Hands = (window as any).Hands;
         const hands = new Hands({
           locateFile: (file: string) =>
-            `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
+            `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/${file}`,
         });
         
         hands.setOptions({
@@ -288,15 +361,28 @@ export default function CameraShake({ onYaoComplete, onAllComplete, currentYaoIn
         
         handsRef.current = hands;
         
-        // 启动帧处理循环
         const processFrame = async () => {
-          if (videoRef.current && handsRef.current && videoRef.current.readyState === 4) {
-            await handsRef.current.send({ image: videoRef.current });
+          if (videoRef.current && handsRef.current && videoRef.current.readyState >= 2) {
+            try {
+              await handsRef.current.send({ image: videoRef.current });
+            } catch {
+              // 单帧失败不影响后续
+            }
           }
-          requestAnimationFrame(processFrame);
+          if (handsRef.current) {
+            requestAnimationFrame(processFrame);
+          }
         };
         processFrame();
       } else {
+        (window as any).__mpRetryCount = ((window as any).__mpRetryCount || 0) + 1;
+        // 最多等待 8 秒（16次 × 500ms），超时则静默降级
+        if ((window as any).__mpRetryCount > 16) {
+          // MediaPipe 加载失败 — 摄像头画面仍然正常显示，仅手势检测不可用
+          // 不设置 cameraError，只是手势功能不工作，用户仍可看到自己
+          console.warn("MediaPipe 加载超时，手势识别不可用，请使用手动摇卦按钮");
+          return;
+        }
         setTimeout(checkMediaPipe, 500);
       }
     };
@@ -319,7 +405,6 @@ export default function CameraShake({ onYaoComplete, onAllComplete, currentYaoIn
     
     const landmarks = results.multiHandLandmarks[0];
     
-    // 计算手掌中心
     const palmX = (landmarks[0].x + landmarks[9].x) / 2;
     const palmY = (landmarks[0].y + landmarks[9].y) / 2;
     
@@ -343,7 +428,6 @@ export default function CameraShake({ onYaoComplete, onAllComplete, currentYaoIn
         }
         
         if (handState === "shaking") {
-          // 每隔一定帧触发视觉震动
           if (shakeCountRef.current % 5 === 0) {
             setIsContainerShaking(true);
             setTimeout(() => setIsContainerShaking(false), 200);
@@ -367,14 +451,12 @@ export default function CameraShake({ onYaoComplete, onAllComplete, currentYaoIn
     isGeneratingRef.current = true;
     setHandState("stopping");
     
-    // 铜钱翻转动画
     setIsFlipping(true);
     setCoinResults([null, null, null]);
     setLandedCoins([false, false, false]);
     
     const yaoResult = generateYao(currentYaoIndex + 1);
     
-    // 逐步揭示三枚铜钱，带落定弹跳
     const landCoin = (idx: 0|1|2, results: [0|1|null, 0|1|null, 0|1|null]) => {
       setCoinResults(results);
       setLandedCoins(prev => {
@@ -419,7 +501,7 @@ export default function CameraShake({ onYaoComplete, onAllComplete, currentYaoIn
     }, 800);
   }, [currentYaoIndex, onYaoComplete]);
 
-  // 手动摇卦（无摄像头时）
+  // 手动摇卦（主要方式）
   const manualShake = () => {
     if (isGeneratingRef.current) return;
     setHandState("shaking");
@@ -446,81 +528,107 @@ export default function CameraShake({ onYaoComplete, onAllComplete, currentYaoIn
     <div className="w-full max-w-2xl mx-auto px-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         
-        {/* 左：摄像头 + 铜钱 */}
+        {/* 左：铜钱 + 摇卦 */}
         <div className="space-y-4">
-          {/* 摄像头视图 */}
-          <div className="relative rounded-2xl overflow-hidden aspect-video glass border border-ink-700">
-            {!cameraActive ? (
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <div className="text-4xl mb-4 animate-float">🤲</div>
-                <p className="text-ink-400 text-sm text-center mb-4 px-4">
-                  开启摄像头<br/>用双手摇晃动作触发摇卦
-                </p>
-                <motion.button
-                  whileTap={{ scale: 0.97 }}
-                  onClick={startCamera}
-                  className="px-5 py-2.5 rounded-xl bg-celadon-600 hover:bg-celadon-500 text-white text-sm transition-colors"
-                >
-                  开启摄像头
-                </motion.button>
-              </div>
-            ) : (
-              <>
-                <video
-                  ref={videoRef}
-                  className="w-full h-full object-cover scale-x-[-1]"
-                  muted
-                  playsInline
-                />
-                <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
-                
-                {/* 晕染遮罩 */}
-                <div className="camera-vignette absolute inset-0 pointer-events-none" />
+          {/* 摄像头区域（可选折叠） */}
+          {showCamera && (
+            <div className="relative rounded-2xl overflow-hidden aspect-video glass border border-ink-700">
 
-                {/* 四角装饰框 */}
-                <div className="camera-corner camera-corner-tl" />
-                <div className="camera-corner camera-corner-tr" />
-                <div className="camera-corner camera-corner-bl" />
-                <div className="camera-corner camera-corner-br" />
+              {/* video 元素始终存在于 DOM，避免 ref 为 null */}
+              <video
+                ref={videoRef}
+                className={`w-full h-full object-cover scale-x-[-1] ${cameraActive ? "block" : "hidden"}`}
+                autoPlay
+                muted
+                playsInline
+                onCanPlay={(e) => {
+                  const v = e.currentTarget;
+                  if (v.paused) v.play().catch(() => {});
+                }}
+                onLoadedData={(e) => {
+                  // 移动端有时 loadedmetadata 不够，loadeddata 才有画面
+                  const v = e.currentTarget;
+                  if (v.paused) v.play().catch(() => {});
+                }}
+              />
+              <canvas ref={canvasRef} className={`absolute inset-0 w-full h-full ${cameraActive ? "block" : "hidden"}`} />
 
-                {/* 扫描线（仅检测中显示） */}
-                {(handState === "detecting" || handState === "shaking") && (
-                  <div className="scan-line" />
-                )}
-                
-                {/* 手势状态指示 */}
-                <div className="absolute bottom-3 left-3 right-3">
-                  <div className="glass rounded-lg px-3 py-2 flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${
-                      handState === "idle" ? "bg-ink-600" :
-                      handState === "detecting" ? "bg-brass-400 animate-pulse" :
-                      handState === "shaking" ? "bg-celadon-400 animate-pulse" :
-                      "bg-cinnabar-400"
-                    }`} />
-                    <span className="text-xs text-ink-300">
-                      {handState === "idle" ? "等待手势..." :
-                       handState === "detecting" ? "检测到双手 — 开始摇晃" :
-                       handState === "shaking" ? "摇晃中... 停止后出爻" :
-                       "生成中..."}
-                    </span>
-                  </div>
+              {/* 未开启 / 出错时的遮罩 */}
+              {!cameraActive && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  {cameraError ? (
+                    <>
+                      <div className="text-3xl mb-3 opacity-50">📷</div>
+                      <p className="text-ink-400 text-xs text-center mb-3 px-4">
+                        {cameraErrorMsg || "摄像头启动失败，请使用手动摇卦"}
+                      </p>
+                      <button
+                        onClick={stopCamera}
+                        className="text-xs text-ink-500 hover:text-ink-300 transition-colors"
+                      >
+                        关闭摄像头面板
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="text-3xl mb-3">🤲</div>
+                      <p className="text-ink-400 text-xs text-center mb-3 px-4">
+                        开启摄像头，用手掌摇晃触发摇卦
+                      </p>
+                      <motion.button
+                        whileTap={{ scale: 0.97 }}
+                        onClick={startCamera}
+                        className="px-4 py-2 rounded-lg bg-celadon-600/80 hover:bg-celadon-500 text-white text-xs transition-colors"
+                      >
+                        开启摄像头
+                      </motion.button>
+                    </>
+                  )}
                 </div>
-                
-                {/* 震动强度条 */}
-                {handState === "shaking" && (
-                  <div className="absolute top-3 left-3 right-3">
-                    <div className="h-1 bg-ink-800 rounded-full overflow-hidden">
-                      <motion.div
-                        className="h-full bg-celadon-400 rounded-full"
-                        animate={{ width: `${shakeIntensity}%` }}
-                        transition={{ duration: 0.1 }}
-                      />
+              )}
+
+              {/* 开启后的 UI 覆盖层 */}
+              {cameraActive && (
+                <>
+                  <div className="camera-vignette absolute inset-0 pointer-events-none" />
+                  <div className="camera-corner camera-corner-tl" />
+                  <div className="camera-corner camera-corner-tr" />
+                  <div className="camera-corner camera-corner-bl" />
+                  <div className="camera-corner camera-corner-br" />
+
+                  {(handState === "detecting" || handState === "shaking") && (
+                    <div className="scan-line" />
+                  )}
+                  
+                  {/* 手势状态 */}
+                  <div className="absolute bottom-3 left-3 right-3">
+                    <div className="glass rounded-lg px-3 py-2 flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${
+                        handState === "idle" ? "bg-ink-600" :
+                        handState === "detecting" ? "bg-brass-400 animate-pulse" :
+                        handState === "shaking" ? "bg-celadon-400 animate-pulse" :
+                        "bg-cinnabar-400"
+                      }`} />
+                      <span className="text-xs text-ink-300">
+                        {handState === "idle" ? "等待手势..." :
+                         handState === "detecting" ? "检测到手 — 开始摇晃" :
+                         handState === "shaking" ? "摇晃中... 停止后出爻" :
+                         "生成中..."}
+                      </span>
                     </div>
                   </div>
-                )}
-              </>
-            )}
-          </div>
+
+                  {/* 关闭按钮 */}
+                  <button
+                    onClick={stopCamera}
+                    className="absolute top-3 right-3 glass rounded-full w-7 h-7 flex items-center justify-center text-ink-400 hover:text-ink-200 transition-colors text-xs"
+                  >
+                    ✕
+                  </button>
+                </>
+              )}
+            </div>
+          )}
 
           {/* 铜钱区域 */}
           <motion.div
@@ -573,16 +681,62 @@ export default function CameraShake({ onYaoComplete, onAllComplete, currentYaoIn
             </AnimatePresence>
           </motion.div>
 
-          {/* 手动触发按钮 */}
+          {/* 摇卦按钮 — 主要操作 */}
           {currentYaoIndex < 6 && (
             <motion.button
-              whileTap={{ scale: 0.97 }}
+              whileTap={{ scale: 0.96 }}
               onClick={manualShake}
               disabled={isGeneratingRef.current}
-              className="w-full py-3 rounded-xl border border-ink-700 text-ink-400 hover:border-celadon-600 hover:text-celadon-400 transition-colors text-sm disabled:opacity-40"
+              className="w-full py-4 rounded-2xl text-white text-base font-medium transition-all disabled:opacity-40"
+              style={{
+                background: isGeneratingRef.current
+                  ? "linear-gradient(135deg, #1a3a2a, #0d2018)"
+                  : "linear-gradient(135deg, #1a6b5a, #0d4a3a, #0a3828)",
+                boxShadow: isGeneratingRef.current
+                  ? "none"
+                  : "0 4px 24px rgba(26,107,90,0.35), inset 0 1px 0 rgba(255,255,255,0.08)",
+                border: "1px solid rgba(26,107,90,0.3)",
+              }}
             >
-              {isGeneratingRef.current ? "生成中..." : "手动摇卦（点击代替手势）"}
+              <span className="flex items-center justify-center gap-2">
+                {isGeneratingRef.current ? (
+                  <>
+                    <motion.span
+                      animate={{ rotate: [0, 180, 360] }}
+                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                    >
+                      🪙
+                    </motion.span>
+                    铜钱翻飞中...
+                  </>
+                ) : (
+                  <>
+                    <span className="text-xl">🪙</span>
+                    <span>摇卦 — 投掷铜钱</span>
+                  </>
+                )}
+              </span>
             </motion.button>
+          )}
+
+          {/* 摄像头切换 */}
+          {!showCamera ? (
+            <button
+              onClick={() => setShowCamera(true)}
+              className="w-full py-2 rounded-xl border border-ink-700/60 text-ink-500 hover:border-ink-600 hover:text-ink-400 transition-colors text-xs"
+            >
+              📷 使用摄像头手势摇卦（可选）
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                stopCamera();
+                setShowCamera(false);
+              }}
+              className="w-full py-2 rounded-xl border border-ink-700/60 text-ink-500 hover:border-ink-600 hover:text-ink-400 transition-colors text-xs"
+            >
+              隐藏摄像头面板
+            </button>
           )}
         </div>
 
