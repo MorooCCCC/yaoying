@@ -97,7 +97,8 @@ ${yaoDescriptions}
 
   try {
     const result = await streamText({
-      model: openai("gpt-4o"),
+      // @ts-ignore
+model: openai("gpt-4o") as any,
       system: systemPrompt,
       messages: [{ role: "user", content: userPrompt }],
       temperature: 0.7,
@@ -153,3 +154,4 @@ function generateDemoContent(question: string, ganZhi: any, timeRange: string): 
 ---
 *⚠️ 提示：当前为演示模式，请配置 OPENAI_API_KEY 环境变量以获得真实 AI 解卦。*`;
 }
+// 强制触发重新构建 
