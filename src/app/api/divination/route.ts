@@ -101,10 +101,10 @@ ${yaoDescriptions}
       system: systemPrompt,
       messages: [{ role: "user", content: userPrompt }],
       temperature: 0.7,
-      maxTokens: 2000,
+      maxOutputTokens: 2000,
     });
 
-    return result.toDataStreamResponse();
+    return result.toTextStreamResponse();
   } catch (error: any) {
     // 如果没有 API Key，返回演示内容
     const demoContent = generateDemoContent(question, ganZhi, timeRangeStr);

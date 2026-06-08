@@ -246,6 +246,13 @@ export default function CameraShake({ onYaoComplete, onAllComplete, currentYaoIn
   
   const stopFramesRef = useRef(0);
   const prevHandPosRef = useRef<{x: number, y: number} | null>(null);
+  const handStateRef = useRef<HandState>("idle");
+
+  // 同步更新 state + ref，解决 initMediaPipe 闭包中 handState 永远是初始值的问题
+  const updateHandState = (state: HandState) => {
+    handStateRef.current = state;
+    setHandState(state);
+  };
 
   // 将 stream 绑到 video 元素并播放
   const attachStream = (video: HTMLVideoElement, stream: MediaStream) => {
@@ -290,7 +297,7 @@ export default function CameraShake({ onYaoComplete, onAllComplete, currentYaoIn
         video: {
           width: { ideal: 640 },
           height: { ideal: 480 },
-          facingMode: "user",
+          facingMode: { ideal: "user" },
         },
         audio: false,
       });
@@ -330,7 +337,7 @@ export default function CameraShake({ onYaoComplete, onAllComplete, currentYaoIn
     }
     setCameraActive(false);
     setCameraError(false);
-    setHandState("idle");
+    updateHandState("idle");
   };
 
   // 初始化 MediaPipe
@@ -395,7 +402,7 @@ export default function CameraShake({ onYaoComplete, onAllComplete, currentYaoIn
     if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
       prevHandPosRef.current = null;
       stopFramesRef.current++;
-      if (stopFramesRef.current > STOP_FRAMES && handState === "shaking" && !isGeneratingRef.current) {
+      if (stopFramesRef.current > STOP_FRAMES && handStateRef.current === "shaking" && !isGeneratingRef.current) {
         triggerGenerate();
       }
       return;
@@ -419,15 +426,15 @@ export default function CameraShake({ onYaoComplete, onAllComplete, currentYaoIn
       if (distance > SHAKE_THRESHOLD / 640) {
         shakeCountRef.current++;
         
-        if (shakeCountRef.current >= SHAKE_REQUIRED && handState !== "shaking") {
-          setHandState("shaking");
+        if (shakeCountRef.current >= SHAKE_REQUIRED && handStateRef.current !== "shaking") {
+          updateHandState("shaking");
           setIsContainerShaking(true);
           playCoinShake();
           vibrate([30, 20, 30]);
           setTimeout(() => setIsContainerShaking(false), 300);
         }
         
-        if (handState === "shaking") {
+        if (handStateRef.current === "shaking") {
           if (shakeCountRef.current % 5 === 0) {
             setIsContainerShaking(true);
             setTimeout(() => setIsContainerShaking(false), 200);
@@ -440,8 +447,8 @@ export default function CameraShake({ onYaoComplete, onAllComplete, currentYaoIn
     
     prevHandPosRef.current = { x: palmX, y: palmY };
     
-    if (handState === "idle" && results.multiHandLandmarks.length > 0) {
-      setHandState("detecting");
+    if (handStateRef.current === "idle" && results.multiHandLandmarks.length > 0) {
+      updateHandState("detecting");
     }
   };
 
@@ -449,7 +456,7 @@ export default function CameraShake({ onYaoComplete, onAllComplete, currentYaoIn
   const triggerGenerate = useCallback(async () => {
     if (isGeneratingRef.current || currentYaoIndex > 6) return;
     isGeneratingRef.current = true;
-    setHandState("stopping");
+    updateHandState("stopping");
     
     setIsFlipping(true);
     setCoinResults([null, null, null]);
@@ -496,7 +503,7 @@ export default function CameraShake({ onYaoComplete, onAllComplete, currentYaoIn
       setTimeout(() => {
         isGeneratingRef.current = false;
         shakeCountRef.current = 0;
-        setHandState("idle");
+        updateHandState("idle");
       }, 1500);
     }, 800);
   }, [currentYaoIndex, onYaoComplete]);
@@ -504,7 +511,7 @@ export default function CameraShake({ onYaoComplete, onAllComplete, currentYaoIn
   // 手动摇卦（主要方式）
   const manualShake = () => {
     if (isGeneratingRef.current) return;
-    setHandState("shaking");
+    updateHandState("shaking");
     setIsContainerShaking(true);
     playCoinShake();
     vibrate([30, 20, 30]);

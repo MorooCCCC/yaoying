@@ -115,7 +115,7 @@ export function generateYao(position: number): YaoResult {
     Math.random() > 0.5 ? 1 : 0,
     Math.random() > 0.5 ? 1 : 0,
   ];
-  const count = coins.reduce((a, b) => a + b, 0);
+  const count = (coins[0] + coins[1] + coins[2]) as number;
   
   let type: YaoType;
   let isMoving: boolean;
